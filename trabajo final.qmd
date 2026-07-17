@@ -1,0 +1,104 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+## Quarto
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(tidymodels)
+```
+
+```{r}
+dataset <- read_csv('C:/Users/guz99/OneDrive/Documentos/dataset.csv')
+
+glimpse(dataset)
+```
+
+Limpieza
+
+```{r}
+dataset %>% summarise(across(everything(), ~sum(is.na(.))))
+#Existe un único NA en artist otro en album_name y otro en track_name
+
+#Elimino canciones duplicadas y filas con faltantes
+dataset <- dataset %>% distinct(track_id, .keep_all = TRUE) %>% drop_na()
+
+```
+
+Análisis exploratorio
+
+```{r}
+# Distribución de popularidad
+ggplot(dataset, aes(x = popularity)) +
+  geom_histogram(bins = 40, fill = "#1DB954") +
+  labs(title = "Distribución de popularidad", x = "Popularidad", y = "Cantidad de tracks")
+#La mayoria de las canciones tienen baja popularidad podriamos filtrar las que tienen mas
+
+# Popularidad por género 
+p1 <- ggplot(dataset, aes(x = track_genre, y = popularity, fill = track_genre)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  labs(title = "Popularidad por género")
+p1
+#Hay demasiados generos habria que acotar, capaz que nos quedamos con los 10 generos mas populares
+
+# Correlaciones entre características de audio
+audio_vars <- dataset %>%
+  select(danceability, energy, loudness, speechiness, acousticness,
+         instrumentalness, liveness, valence, tempo, popularity)
+#Este análisis lo sugirió la ia no creo que aporte mucho
+
+cor_matrix <- cor(audio_vars, use = "complete.obs")
+cor_matrix %>%
+  as.data.frame() %>%
+  rownames_to_column("var1") %>%
+  pivot_longer(-var1, names_to = "var2", values_to = "corr") %>%
+  ggplot(aes(var1, var2, fill = corr)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Correlación entre features de audio y popularidad")
+
+
+```
+
+Modelo tidy
+
+```{r}
+library(tidymodels)
+set.seed(123)
+split <- initial_split(dataset, prop = 0.8, strata = popularity)
+train <- training(split)
+test <- testing(split)
+
+train <- train %>% mutate(explicit = as.factor(explicit))
+test  <- test  %>% mutate(explicit = as.factor(explicit))
+
+receta <- recipe(popularity ~ danceability + energy + loudness + speechiness +
+                   acousticness + instrumentalness + liveness + valence +
+                   tempo + duration_ms + explicit,
+                 data = train) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(explicit)
+
+modelo_rf <- rand_forest(trees = 500, mtry = 5) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression")
+
+flujo <- workflow() %>%
+  add_recipe(receta) %>%
+  add_model(modelo_rf)
+
+ajuste <- fit(flujo, data = train)
+
+# Evaluación
+pred_test <- predict(ajuste, test) %>% bind_cols(test %>% select(popularity))
+metrics(pred_test, truth = popularity, estimate = .pred)
+
+# Importancia de variables
+ajuste %>% extract_fit_parsnip() %>% vip::vip()
+```
