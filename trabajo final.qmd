@@ -13,7 +13,7 @@ library(tidymodels)
 ```
 
 ```{r}
-dataset <- read_csv('C:/Users/guz99/OneDrive/Documentos/dataset.csv')
+dataset <- read_csv('dataset.csv')
 
 glimpse(dataset)
 ```
@@ -31,6 +31,53 @@ dataset <- dataset %>% distinct(track_id, .keep_all = TRUE) %>% drop_na()
 
 Análisis exploratorio
 
+Cantidad de canciones por estilo
+
+```{r}
+  resumen_generos <- dataset %>%
+  group_by(track_genre) %>%
+  summarise(
+    cantidad = n(),
+    pop_media = mean(popularity, na.rm = TRUE)
+  ) %>%
+  arrange(desc(cantidad))
+
+
+ggplot(resumen_generos, aes(x = reorder(track_genre, cantidad), y = cantidad, fill = pop_media)) +
+  geom_col() +
+  scale_fill_gradient(low = "lightblue", high = "darkred", name = "Popularidad\nmedia") +
+  coord_flip() +
+  labs(title = "Cantidad de canciones por género y su popularidad media",
+       x = "Género",
+       y = "Cantidad de canciones")
+
+#Son demasiados nos quedamos con el top 20
+resumen_top25 <- resumen_generos %>% slice_head(n = 25)
+
+
+ggplot(resumen_top25, aes(x = reorder(track_genre, cantidad), y = cantidad, fill = pop_media)) +
+  geom_col() +
+  scale_fill_gradient(low = "lightblue", high = "darkred", name = "Popularidad\nmedia") +
+  coord_flip() +
+  labs(title = "Cantidad de canciones por género y su popularidad media",
+       x = "Género",
+       y = "Cantidad de canciones")
+
+resumen_ultimos25 <- resumen_generos %>% slice_tail(n = 25)
+
+ggplot(resumen_ultimos25, aes(x = reorder(track_genre, cantidad), y = cantidad, fill = pop_media)) +
+  geom_col() +
+  scale_fill_gradient(low = "lightblue", high = "darkred", name = "Popularidad\nmedia") +
+  coord_flip() +
+  labs(title = "Cantidad de canciones por género y su popularidad media",
+       x = "Género",
+       y = "Cantidad de canciones")
+
+
+```
+
+Distribucion de la popularidad
+
 ```{r}
 # Distribución de popularidad
 ggplot(dataset, aes(x = popularity)) +
@@ -38,6 +85,11 @@ ggplot(dataset, aes(x = popularity)) +
   labs(title = "Distribución de popularidad", x = "Popularidad", y = "Cantidad de tracks")
 #La mayoria de las canciones tienen baja popularidad podriamos filtrar las que tienen mas
 
+```
+
+Popularidad por género
+
+```{r}
 # Popularidad por género 
 p1 <- ggplot(dataset, aes(x = track_genre, y = popularity, fill = track_genre)) +
   geom_boxplot() +
@@ -46,23 +98,47 @@ p1 <- ggplot(dataset, aes(x = track_genre, y = popularity, fill = track_genre)) 
 p1
 #Hay demasiados generos habria que acotar, capaz que nos quedamos con los 10 generos mas populares
 
-# Correlaciones entre características de audio
+#seleccionamos 10 géneros mas polulares
+# Calculamos la popularidad promedio por género y nos quedamos con los 10 más altos
+top10_generos <- dataset %>%
+  group_by(track_genre) %>%
+  summarise(pop_media = median(popularity, na.rm = TRUE)) %>%
+  arrange(desc(pop_media)) %>%
+  slice_head(n = 10) %>%
+  pull(track_genre)
+
+p2 <- dataset %>% 
+  filter(track_genre %in% top10_generos) %>% 
+  ggplot(aes(x = track_genre, y = popularity, fill = track_genre)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  labs(title = "Popularidad por género (Top 10)")
+p2
+
+```
+
+Popularidad por características del audio
+
+```{r}
+# Correlaciones entre características de audio y la popularidad de las canciones
 audio_vars <- dataset %>%
   select(danceability, energy, loudness, speechiness, acousticness,
          instrumentalness, liveness, valence, tempo, popularity)
-#Este análisis lo sugirió la ia no creo que aporte mucho
 
 cor_matrix <- cor(audio_vars, use = "complete.obs")
+
 cor_matrix %>%
   as.data.frame() %>%
   rownames_to_column("var1") %>%
+  filter(var1 == "popularity") %>%   # o var1 != "popularity" si popularity queda como columna
   pivot_longer(-var1, names_to = "var2", values_to = "corr") %>%
-  ggplot(aes(var1, var2, fill = corr)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(title = "Correlación entre features de audio y popularidad")
-
+  filter(var2 != "popularity") %>%
+  ggplot(aes(x = reorder(var2, corr), y = corr, fill = corr)) +
+  geom_col() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  coord_flip() +
+  labs(title = "Correlación de cada característica de audio con popularidad",
+       x = "Característica", y = "Correlación")
 
 ```
 
