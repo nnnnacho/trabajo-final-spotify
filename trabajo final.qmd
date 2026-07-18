@@ -209,6 +209,7 @@ Modelo tidy
 ```{r}
 library(tidymodels)
 library(rpart)
+library(rpart.plot)
 
 dataset_reducido <- dataset %>%
   mutate(track_genre = as.factor(track_genre)) %>%
@@ -229,37 +230,62 @@ receta <- recipe(popularity ~ danceability + energy + loudness + speechiness +
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(explicit)
 
-modelo_arbol <- rpart(popularity ~ ., data = train, method = "class",
-                       control = rpart.control(cp = 0.005))
+#Arbol de regresion. Va a predecir el promedio mas de popularidad, cual es el promedio de calificacion del 1 al 100 entre las canciones mas populares
 
-rpart.plot(modelo_arbol, type = 3, extra = 101, fallen.leaves = TRUE,
-           main = "Árbol de decisión - Popularidad")
+modelo_arbol <- decision_tree()|>
+                set_engine('rpart')|>
+                set_mode('regression')|>
+                fit(popularity~., data= train)
 
-#Evaluamos en los datos de prueba 
+rpart.plot(modelo_arbol$fit, roundint = FALSE)
+#hay que mejorar este arbol, no se entiende que quiere decir
 
-pred_arbol <- predict(modelo_arbol, newdata = test)
-rmse_arbol <- sqrt(mean((test$popularity - pred_arbol)^2))
-cat("RMSE árbol de decisión:", round(rmse_arbol, 2), "\n")
+#En este caso la prediccion Y es el promedio de la  evaluacion en 40 lo
+#cual se refleja en el grafico. Respecto a train
+resultados_tree_entrenamiento<- train %>% select(popularity) |>
+ bind_cols(predict(modelo_arbol,train)) |>
+ rename(.pred_tree=.pred)
 
+resultados_tree_entrenamiento %>% head()
 
+resultados_tree_entrenamiento |> ggplot(aes(x=popularity,y=.pred_tree))+
+                          geom_point()+ 
+                          theme_bw()+
+                  labs(title = "Predicciones del promedio de popularidad",
+                  x="populariad",                                                               y= "prediccion")
+#Evaluamos el algoritmo en los datos de entrenamiento
+
+metrics(resultados_tree_entrenamiento, truth = popularity, estimate = .pred_tree)
+
+# el modelo explica el 36% de la variación en popularidad, con un error típico de 11 puntos y un error promedio de 16 puntos
+
+#Evaluacion respecto de test
+resultados_tree_test= test |> select(popularity) |>
+ bind_cols(predict(modelo_arbol, test)) |>
+ rename(.pred_tree=.pred)
+
+resultados_tree_test |> head()
+
+#Metricas
+
+metrics(resultados_tree_test, truth = popularity, estimate = .pred_tree)
+  
 ```
+
+Una vez comparando los resultados de las metricas en train y test podemos decir que el modelo Tree generaliza bien, esto quiere decir que el arbol logra captar relaciones que se sostienen en datos que nunca vio, que es lo queremos demostrar
+
+### Random Forest
 
 ```{r}
-#Evaluamos con el modelo de random forest
-modelo_rf <- rand_forest(trees = 500, mtry = 5) %>%
-  set_engine("ranger", importance = "impurity") %>%
-  set_mode("regression")
+library(vip)
+popularidad_rf = rand_forest(trees = 500) |>
+ set_engine('ranger',importance='impurity') |>
+ set_mode('regression') |>
+ fit(popularity~., data= train)
+popularidad_rf
 
-flujo <- workflow() %>%
-  add_recipe(receta) %>%
-  add_model(modelo_rf)
+popularidad_rf |> vip()
 
-ajuste <- fit(flujo, data = train)
-
-# Evaluación
-pred_test <- predict(ajuste, test) %>% bind_cols(test %>% select(popularity))
-metrics(pred_test, truth = popularity, estimate = .pred)
-
-# Importancia de variables
-ajuste %>% extract_fit_parsnip() %>% vip::vip()
 ```
+
+### Bivariado
