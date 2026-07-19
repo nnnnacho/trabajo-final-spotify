@@ -70,6 +70,9 @@ Low value = Sad/negative
 library(tidyverse)
 library(plotly)
 library(tidymodels)
+library(rpart)
+library(rpart.plot)
+library(vip)
 
 
 ```
@@ -80,7 +83,7 @@ dataset <- read_csv('dataset.csv')
 glimpse(dataset)
 ```
 
-Limpieza
+## Limpieza
 
 ```{r}
 dataset %>% summarise(across(everything(), ~sum(is.na(.))))
@@ -89,13 +92,22 @@ dataset %>% summarise(across(everything(), ~sum(is.na(.))))
 #Elimino canciones duplicadas y filas con faltantes
 dataset <- dataset %>% distinct(track_id, .keep_all = TRUE) %>% drop_na()
 
+#Tenemos demasiadas variables para realizar los modelos de machine learning. Generamos dataset auxiliar donde eliminamos las variables tipo character y factorizaos los géneros y la variable explicit para que el proceso sea más eficiente. Se elimina variable que numera las canciones
+
+dataset_reducido <- dataset %>%
+  mutate(track_genre = as.factor(track_genre),
+         explicit = as.factor(explicit)) %>%
+  select(-where(is.character)) %>% select(-...1)
+
 ```
 
-Análisis exploratorio
+## Análisis exploratorio
 
-Cantidad de canciones por estilo.
+#### Cantidad de canciones por estilo.
 
 ```{r}
+
+#Agrupamos por genero, para cada genero medimos la cantidad de canciones y el promedio de popolaridad para cada genero. Ordenamos de forma descendiente
   resumen_generos <- dataset %>%
   group_by(track_genre) %>%
   summarise(
@@ -103,8 +115,8 @@ Cantidad de canciones por estilo.
     pop_media = mean(popularity, na.rm = TRUE)
   ) %>%
   arrange(desc(pop_media))
-#Agrupamos por genero, para cada genero medimos la cantidad de canciones y el promedio de popolaridad para cada genero. Ordenamos de forma descendiente
 
+#Graficamos
 ggplot(resumen_generos, aes(x = reorder(track_genre, cantidad), y = cantidad, fill = pop_media)) +
   geom_col() +
   scale_fill_gradient(low = "lightblue", high = "darkred", name = "Popularidad\nmedia") +
@@ -112,8 +124,8 @@ ggplot(resumen_generos, aes(x = reorder(track_genre, cantidad), y = cantidad, fi
   labs(title = "Cantidad de canciones por género y su popularidad media",
        x = "Género",
        y = "Cantidad de canciones")
+#Son demasiados nos quedamos con el top 25 de géneros segun popularidad media
 
-#Son demasiados nos quedamos con el top 20
 resumen_top25 <- resumen_generos %>% slice_head(n = 25)
 
 
@@ -125,6 +137,7 @@ ggplot(resumen_top25, aes(x = reorder(track_genre, cantidad), y = cantidad, fill
        x = "Género",
        y = "Cantidad de canciones")
 
+#Vemos los 25  géneros de menor popularidad media
 resumen_ultimos25 <- resumen_generos %>% slice_tail(n = 25)
 
 ggplot(resumen_ultimos25, aes(x = reorder(track_genre, cantidad), y = cantidad, fill = pop_media)) +
@@ -138,29 +151,43 @@ ggplot(resumen_ultimos25, aes(x = reorder(track_genre, cantidad), y = cantidad, 
 
 ```
 
-Distribucion de la popularidad
+#### Distribución de la popularidad
 
 ```{r}
-# Distribución de popularidad
+# Distribución de popularidad en histograma
 ggplot(dataset, aes(x = popularity)) +
-  geom_histogram(bins = 40, fill = "#1DB954") +
-  labs(title = "Distribución de popularidad", x = "Popularidad", y = "Cantidad de tracks")
+  geom_histogram(bins = 40, fill = "#2E8B57", color = "white", alpha = 0.9, linewidth = 0.2) +
+  labs(
+    title = "Distribución de popularidad",
+    subtitle = "Cantidad de canciones según su nivel de popularidad",
+    x = "Popularidad",
+    y = "Cantidad de canciones"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "gray40", size = 11),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.title = element_text(face = "bold")
+  )
 #La mayoria de las canciones tienen baja popularidad podriamos filtrar las que tienen mas
 
 ```
 
-Popularidad por género
+#### Popularidad por género
+
+Diagrama de caja
 
 ```{r}
-# Popularidad por género 
+# Popularidad por género en diagrama de cajas
 p1 <- ggplot(dataset, aes(x = track_genre, y = popularity, fill = track_genre)) +
   geom_boxplot() +
   theme(legend.position = "none") +
   labs(title = "Popularidad por género")
 p1
-#Hay demasiados generos habria que acotar, capaz que nos quedamos con los 10 generos mas populares
+#Hay demasiados generos habria que acotar, nos quedamos con los 10 generos mas populares
 
-#seleccionamos 10 géneros mas polulares
 # Calculamos la popularidad promedio por género y nos quedamos con los 10 más altos
 top10_generos <- dataset %>%
   group_by(track_genre) %>%
@@ -169,17 +196,30 @@ top10_generos <- dataset %>%
   slice_head(n = 10) %>%
   pull(track_genre)
 
-p2 <- dataset %>% 
-  filter(track_genre %in% top10_generos) %>% 
+p2 <- dataset %>%
+  filter(track_genre %in% top10_generos) %>%
+  mutate(track_genre = fct_reorder(track_genre, popularity, .fun = median)) %>%
   ggplot(aes(x = track_genre, y = popularity, fill = track_genre)) +
-  geom_boxplot() +
-  theme(legend.position = "none") +
-  labs(title = "Popularidad por género (Top 10)")
-p2
+  geom_boxplot(outlier.alpha = 0.3, outlier.size = 1) +
+  coord_flip() +
+  scale_fill_viridis_d(option = "D") +
+  labs(
+    title = "Popularidad por género (Top 10)",
+    subtitle = "Ordenado por mediana de popularidad",
+    x = NULL,
+    y = "Popularidad"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
 
+p2
 ```
 
-Popularidad por características del audio
+#### Popularidad por características del audio
 
 ```{r}
 # Correlaciones entre características de audio y la popularidad de las canciones
@@ -204,38 +244,33 @@ audio_vars <- dataset %>%
 
 ```
 
-Modelo tidy
+## Modelos predictivos
+
+#### Receta
 
 ```{r}
-library(tidymodels)
-library(rpart)
-library(rpart.plot)
-
-dataset_reducido <- dataset %>%
-  mutate(track_genre = as.factor(track_genre)) %>%
-  select(-where(is.character))
-
 set.seed(123)
 split <- initial_split(dataset_reducido, prop = 0.8, strata = popularity)
 train <- training(split)
 test <- testing(split)
 
-train <- train %>% mutate(explicit = as.factor(explicit))
-test  <- test  %>% mutate(explicit = as.factor(explicit))
-
-receta <- recipe(popularity ~ danceability + energy + loudness + speechiness +
-                   acousticness + instrumentalness + liveness + valence +
-                   tempo + duration_ms + explicit,
-                 data = train) %>%
+receta <- recipe(popularity ~ danceability + energy + loudness + speechiness + acousticness + instrumentalness + liveness + valence +tempo + duration_ms + explicit, data = train) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(explicit)
 
+
+  
+```
+
+#### Modelo Arbol de desición
+
+```{r}
 #Arbol de regresion. Va a predecir el promedio mas de popularidad, cual es el promedio de calificacion del 1 al 100 entre las canciones mas populares
 
 modelo_arbol <- decision_tree()|>
-                set_engine('rpart')|>
-                set_mode('regression')|>
-                fit(popularity~., data= train)
+  set_engine('rpart')|>
+  set_mode('regression')|>
+  fit(popularity~., data= train)
 
 rpart.plot(modelo_arbol$fit, roundint = FALSE)
 #hay que mejorar este arbol, no se entiende que quiere decir
@@ -243,49 +278,87 @@ rpart.plot(modelo_arbol$fit, roundint = FALSE)
 #En este caso la prediccion Y es el promedio de la  evaluacion en 40 lo
 #cual se refleja en el grafico. Respecto a train
 resultados_tree_entrenamiento<- train %>% select(popularity) |>
- bind_cols(predict(modelo_arbol,train)) |>
- rename(.pred_tree=.pred)
+  bind_cols(predict(modelo_arbol,train)) |>
+  rename(.pred_tree=.pred)
 
-resultados_tree_entrenamiento %>% head()
+resultados_tree_entrenamiento %>% head(50)
+resultados_tree_entrenamiento %>% distinct(.pred_tree)
+#Predice entre 4 niveles de popularidad
 
 resultados_tree_entrenamiento |> ggplot(aes(x=popularity,y=.pred_tree))+
-                          geom_point()+ 
-                          theme_bw()+
-                  labs(title = "Predicciones del promedio de popularidad",
-                  x="populariad",                                                               y= "prediccion")
+  geom_point()+ 
+  theme_bw()+
+  labs(title = "Predicciones del promedio de popularidad",
+       x="populariad",                                                               y= "prediccion")
 #Evaluamos el algoritmo en los datos de entrenamiento
 
 metrics(resultados_tree_entrenamiento, truth = popularity, estimate = .pred_tree)
 
-# el modelo explica el 36% de la variación en popularidad, con un error típico de 11 puntos y un error promedio de 16 puntos
+# el modelo explica el 29% de la variación en popularidad, con un error típico de 12.5 puntos y un error promedio de 17 puntos
 
 #Evaluacion respecto de test
 resultados_tree_test= test |> select(popularity) |>
- bind_cols(predict(modelo_arbol, test)) |>
- rename(.pred_tree=.pred)
+  bind_cols(predict(modelo_arbol, test)) |>
+  rename(.pred_tree=.pred)
 
 resultados_tree_test |> head()
+resultados_tree_test %>%distinct(.pred_tree)
 
 #Metricas
 
 metrics(resultados_tree_test, truth = popularity, estimate = .pred_tree)
-  
 ```
 
 Una vez comparando los resultados de las metricas en train y test podemos decir que el modelo Tree generaliza bien, esto quiere decir que el arbol logra captar relaciones que se sostienen en datos que nunca vio, que es lo queremos demostrar
 
-### Random Forest
+#### Random Forest
 
 ```{r}
-library(vip)
+#Se realiza random forest
 popularidad_rf = rand_forest(trees = 500) |>
  set_engine('ranger',importance='impurity') |>
  set_mode('regression') |>
  fit(popularity~., data= train)
 popularidad_rf
 
-popularidad_rf |> vip()
+#Vemos variables más importantes para la prediccción
+popularidad_rf |> vip(num_features = 15)
 
+#Vemos predicciones vs popularidad real
+predicciones <- predict(popularidad_rf, new_data = test) |>
+  bind_cols(test)
+predicciones
+
+#Graficamos predicciones vs popularidad real
+predicciones |>
+  ggplot(aes(x = popularity, y = .pred)) +
+  geom_point(alpha = 0.4) +
+  geom_abline(linetype = "dashed", color = "red") +
+  labs(x = "Popularidad real", y = "Popularidad predicha")
+
+#Vemos métricas
+predicciones |> metrics(truth = popularity, estimate = .pred)
+
+
+
+```
+
+#### Comparación de modelos
+
+```{r}
+#Generamos cuadro de comparacion de modelos
+resultados_rf_test <- predict(popularidad_rf, new_data = test) |>
+  rename(.pred_rf = .pred) |>
+  bind_cols(test)
+
+comparacion <- metrics(resultados_tree_test, truth = popularity, estimate = .pred_tree) |>
+  mutate(modelo = "Árbol") |>
+  bind_rows(
+    metrics(resultados_rf_test, truth = popularity, estimate = .pred_rf) |>
+      mutate(modelo = "Random Forest")
+  )
+
+comparacion
 ```
 
 ### Bivariado
