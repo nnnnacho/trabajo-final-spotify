@@ -10,37 +10,37 @@ Todas aquellas personas que alguna vez escucharon un "Top 50 Uruguay" probableme
 
 Este data set contiene informacion sobre los tracks de Spotify en donde se representan hasta 125 generos musicales distintos, cada fila representa una sola cancion y cada columna representa caracteristicas de estos temas musicales. Incluyendo:
 
--   track_id – ID unico recibido por cada cancion.
+- track_id – ID unico recibido por cada cancion.
 
--   artists – Nombre del artista que interpreta la cancion
+- artists – Nombre del artista que interpreta la cancion
 
--   popularity – Valor entre 0 y 100 que muestra que tan popular es una cancion, un valor mas alto significa que es mas popular. Se base en la cantidad de veces que fue reproducida y que tan recientes son las reproducciones.
+- popularity – Valor entre 0 y 100 que muestra que tan popular es una cancion, un valor mas alto significa que es mas popular. Se base en la cantidad de veces que fue reproducida y que tan recientes son las reproducciones.
 
--   duration_ms – Duracion de la cancion en milisegundos
+- duration_ms – Duracion de la cancion en milisegundos
 
--   explicit – Indica si la cancion contiene vocabulario explicito (para adultos)
+- explicit – Indica si la cancion contiene vocabulario explicito (para adultos)
 
 true = Si
 
 false = No o Desconocidp
 
--   danceability – Que tan bailable es una cancion
+- danceability – Que tan bailable es una cancion
 
 (0 = menos bailable, 1 = mas bailable).
 
--   energy – Que tan energetica se siente la cancion
+- energy – Que tan energetica se siente la cancion
 
 (0 = calm/soft, 1 = very energetic/loud).
 
--   loudness – Mide que tan ruidosa es una cancion en decibles (dB).
+- loudness – Mide que tan ruidosa es una cancion en decibles (dB).
 
--   mode – Indica si la cancion es:
+- mode – Indica si la cancion es:
 
 1 = Major (cancion feliz)
 
 0 = Minor (cancion triste)
 
--   speechiness – Mide el uso de las palabras que se usan en una cancion
+- speechiness – Mide el uso de las palabras que se usan en una cancion
 
 Cercano a 1 = Conversaciones o canciones habladas (ejemplo, podcast)
 
@@ -48,23 +48,23 @@ Entre 0.33–0.66 = Mezcla de palabras y musica (ejemplo, rap)
 
 Debajo 0.33 = Totalmente musical
 
--   acousticness – Probabilidad de cuan acustica es una cancion
+- acousticness – Probabilidad de cuan acustica es una cancion
 
 (1 = very likely acoustic).
 
--   instrumentalness – Probabilidad de que la cancion solo tenga instrumentos (1 = no singing).
+- instrumentalness – Probabilidad de que la cancion solo tenga instrumentos (1 = no singing).
 
--   liveness – Probabilidad de que la cancion haya sido grabada en vivo (higher value = more likely live).
+- liveness – Probabilidad de que la cancion haya sido grabada en vivo (higher value = more likely live).
 
--   valence – Describe el animo de la cancion
+- valence – Describe el animo de la cancion
 
 High value = Happy/positive
 
 Low value = Sad/negative
 
--   tempo – Velocida de la cancion medida en beats por minuto (BPM)
+- tempo – Velocida de la cancion medida en beats por minuto (BPM)
 
--   track_genre – Genero musical de la cancion
+- track_genre – Genero musical de la cancion
 
 ```{r}
 library(tidyverse)
