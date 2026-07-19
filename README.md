@@ -6,9 +6,9 @@ Angélica Vasquez,
 Ignacio Quintela.
 
 ## Contenido:
-analisis/: Documento con el analisis exploratorio y el modelo.
-app/: Codigo de la aplicación Shiny.
-datps/: Dataset utilizado.
+-analisis/: Documento con el analisis exploratorio y el modelo.
+-app/: Codigo de la aplicación Shiny.
+-datps/: Dataset utilizado.
 
 ## App Shiny
 - Código en app/app.R
