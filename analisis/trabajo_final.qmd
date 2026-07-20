@@ -305,8 +305,6 @@ modelo_arbol <- decision_tree()|>
 
 rpart.plot(modelo_arbol$fit, roundint = FALSE)
 
-#En este caso la prediccion Y es el promedio de la  evaluacion en 40 
-#lo cual se refleja en el grafico. Respecto a train
 resultados_tree_entrenamiento<- train %>% select(popularity) |>
   bind_cols(predict(modelo_arbol,train)) |>
   rename(.pred_tree=.pred)
@@ -344,7 +342,7 @@ En el arbol:
 
 Nodo raíz (33, 100%): valor promedio de popularity predicho = 33 para el 100% de los datos, antes de dividir.
 
-La primera división es por track_genre: separa entre un grupo de géneros menos populares (rama izquierda) vs. el resto (rama derecha, 41 puntos, 59% de los datos).
+La primera división es por genero: separa entre un grupo de géneros menos populares (rama izquierda) vs. el resto (rama derecha, 41 puntos, 59% de los datos).
 
 La rama derecha (41, 59%) tiene popularidad promedio más alta, géneros como pop, hip-hop, house, etc. tienden a ser más populares que la rama izquierda.
 
@@ -352,7 +350,7 @@ Dentro de esa rama derecha, se vuelve a dividir por género: el nodo 48 (20%) a�
 
 La rama izquierda (22, 41%) tiene popularidad más baja en promedio, y se subdivide otra vez por género en 12 (12%) — el grupo menos popular de todo el árbol— y 26 (28%).
 
-Una vez comparando los resultados de las metricas en train y test podemos decir que el modelo Tree generaliza bien, esto quiere decir que el arbol logra captar relaciones que se sostienen en datos que nunca vio, que es lo queremos demostrar.
+Una vez comparando los resultados de las metricas del arbol de regresion y del random forest, no son buenos generalizando los resultados, agrandar el arbol para distinguir las caracteristicas de audio generaria un sobreajuste, ya que simplemente no tienen mucho poder predictivo adicional
 
 #### Random Forest
 
@@ -408,4 +406,4 @@ comparacion
 
 Según los datos, el género musical importa mucho más que las características acústicas de la canción (el "qué tipo de música haces" pesa más que el "cómo suena técnicamente") pero esto probablemente refleja tamaño de audiencia y visibilidad en la plataforma.
 
-Por lo tanto, no podemos afirmar que "hacer una cancion pop" causa exito. Es un genero que esta sometido a mucha visualizacion del medio debido a su naturaleza mainstream
+Por lo tanto, no podemos afirmar que "hacer una cancion pop" causa exito. Es un genero que esta sometido a mucha visualizacion del medio debido a su naturaleza mainstream. Sin embargo a traves del estudio pudimos identificar correlaciones altas entre el genero pop con caracteristicas de audio como bailabilidad y ruido que pueden ser consideradas a la hora de producir una cancion para una plataforma como Spotify
