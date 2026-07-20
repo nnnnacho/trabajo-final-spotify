@@ -1,7 +1,9 @@
 ---
 title: "Explorando las características musicales en Spotify"
-author: Alejandro ALberti, Angelica Vasquez, Ignacio Quintela
-format: html
+author: "Alejandro ALberti, Angelica Vasquez, Ignacio Quintela"
+format:
+ html:
+  embed-resources: true
 editor: visual
 ---
 
