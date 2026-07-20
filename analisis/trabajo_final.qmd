@@ -6,41 +6,41 @@ editor: visual
 
 ## Trabajo Final: Explorando las caracteristicas musicales de los exitos de Spotify
 
-Todas aquellas personas que alguna vez escucharon un "Top 50 Uruguay" probablemente se hayan preguntado (o no) cual es la razon de la popularidad de esas canciones que ahi se encuentran. Nosotros queremos encontrar esos patrones que se repiten con frecuencia y como se relacionan entre si
+Todas aquellas personas que alguna vez escucharon un "Top 50 Uruguay" probablemente se hayan preguntado (o no) cual es la razon de la popularidad de esas canciones que ahi se encuentran. Queremos conocer cuales son los patrones que se repiten con frecuencia y como se relacionan entre si y que tienen que ver la popularidad de una cancion, estaremos trabajando con las herramientas proporcionadas en el curso para renponder lal pregunta: ¿Que hace a una cancion exitosa?
 
 Este data set contiene informacion sobre los tracks de Spotify en donde se representan hasta 125 generos musicales distintos, cada fila representa una sola cancion y cada columna representa caracteristicas de estos temas musicales. Incluyendo:
 
-- track_id – ID unico recibido por cada cancion.
+-   track_id – ID unico recibido por cada cancion.
 
-- artists – Nombre del artista que interpreta la cancion
+-   artists – Nombre del artista que interpreta la cancion
 
-- popularity – Valor entre 0 y 100 que muestra que tan popular es una cancion, un valor mas alto significa que es mas popular. Se base en la cantidad de veces que fue reproducida y que tan recientes son las reproducciones.
+-   popularity – Valor entre 0 y 100 que muestra que tan popular es una cancion, un valor mas alto significa que es mas popular. Se base en la cantidad de veces que fue reproducida y que tan recientes son las reproducciones.
 
-- duration_ms – Duracion de la cancion en milisegundos
+-   duration_ms – Duracion de la cancion en milisegundos
 
-- explicit – Indica si la cancion contiene vocabulario explicito (para adultos)
+-   explicit – Indica si la cancion contiene vocabulario explicito (para adultos)
 
 true = Si
 
 false = No o Desconocidp
 
-- danceability – Que tan bailable es una cancion
+-   danceability – Que tan bailable es una cancion
 
 (0 = menos bailable, 1 = mas bailable).
 
-- energy – Que tan energetica se siente la cancion
+-   energy – Que tan energetica se siente la cancion
 
 (0 = calm/soft, 1 = very energetic/loud).
 
-- loudness – Mide que tan ruidosa es una cancion en decibles (dB).
+-   loudness – Mide que tan ruidosa es una cancion en decibles (dB).
 
-- mode – Indica si la cancion es:
+-   mode – Indica si la cancion es:
 
 1 = Major (cancion feliz)
 
 0 = Minor (cancion triste)
 
-- speechiness – Mide el uso de las palabras que se usan en una cancion
+-   speechiness – Mide el uso de las palabras que se usan en una cancion
 
 Cercano a 1 = Conversaciones o canciones habladas (ejemplo, podcast)
 
@@ -48,23 +48,25 @@ Entre 0.33–0.66 = Mezcla de palabras y musica (ejemplo, rap)
 
 Debajo 0.33 = Totalmente musical
 
-- acousticness – Probabilidad de cuan acustica es una cancion
+-   acousticness – Probabilidad de cuan acustica es una cancion
 
 (1 = very likely acoustic).
 
-- instrumentalness – Probabilidad de que la cancion solo tenga instrumentos (1 = no singing).
+-   instrumentalness – Probabilidad de que la cancion solo tenga instrumentos (1 = no singing).
 
-- liveness – Probabilidad de que la cancion haya sido grabada en vivo (higher value = more likely live).
+-   liveness – Probabilidad de que la cancion haya sido grabada en vivo (higher value = more likely live).
 
-- valence – Describe el animo de la cancion
+-   valence – Describe el animo de la cancion
 
 High value = Happy/positive
 
 Low value = Sad/negative
 
-- tempo – Velocida de la cancion medida en beats por minuto (BPM)
+-   tempo – Velocida de la cancion medida en beats por minuto (BPM)
 
-- track_genre – Genero musical de la cancion
+-   track_genre – Genero musical de la cancion
+
+Fuente: <https://www.kaggle.com/datasets/yashdev01/spotify-tracks-dataset>
 
 ```{r}
 library(tidyverse)
@@ -73,7 +75,7 @@ library(tidymodels)
 library(rpart)
 library(rpart.plot)
 library(vip)
-
+library(corrplot)
 
 ```
 
@@ -85,6 +87,8 @@ glimpse(dataset)
 
 ## Limpieza
 
+Debemos contar con los datos mas limpios posibles, nos deshacemos de los NA, las variables tipo character y de variables que no aportan informacion relevante como track_id.
+
 ```{r}
 dataset %>% summarise(across(everything(), ~sum(is.na(.))))
 #Existe un único NA en artist otro en album_name y otro en track_name
@@ -92,7 +96,7 @@ dataset %>% summarise(across(everything(), ~sum(is.na(.))))
 #Elimino canciones duplicadas y filas con faltantes
 dataset <- dataset %>% distinct(track_id, .keep_all = TRUE) %>% drop_na()
 
-#Tenemos demasiadas variables para realizar los modelos de machine learning. Generamos dataset auxiliar donde eliminamos las variables tipo character y factorizaos los géneros y la variable explicit para que el proceso sea más eficiente. Se elimina variable que numera las canciones
+#Tenemos demasiadas variables para realizar los modelos de machine learning. Generamos dataset auxiliar donde eliminamos las variables tipo character y factorizamos los géneros y la variable explicit para que el proceso sea más eficiente. Se elimina variable que enumera las canciones
 
 dataset_reducido <- dataset %>%
   mutate(track_genre = as.factor(track_genre),
@@ -107,7 +111,7 @@ dataset_reducido <- dataset %>%
 
 ```{r}
 
-#Agrupamos por genero, para cada genero medimos la cantidad de canciones y el promedio de popolaridad para cada genero. Ordenamos de forma descendiente
+#Agrupamos por genero, para cada genero medimos la cantidad de canciones y el promedio de popularidad para cada genero. Ordenamos de forma descendiente
   resumen_generos <- dataset %>%
   group_by(track_genre) %>%
   summarise(
@@ -124,6 +128,7 @@ ggplot(resumen_generos, aes(x = reorder(track_genre, cantidad), y = cantidad, fi
   labs(title = "Cantidad de canciones por género y su popularidad media",
        x = "Género",
        y = "Cantidad de canciones")
+
 #Son demasiados nos quedamos con el top 25 de géneros segun popularidad media
 
 resumen_top25 <- resumen_generos %>% slice_head(n = 25)
@@ -151,6 +156,8 @@ ggplot(resumen_ultimos25, aes(x = reorder(track_genre, cantidad), y = cantidad, 
 
 ```
 
+En el primer grafico notamos que teniamos demasiados generos musicales, por lo tanto limpiamos y dejamos los 25 generos segun su popularidad media. En el segundo grafico, una vez disminuidos los generos, graficamos en funcion de los generos musicales mas populares del dataset, rellenamos segun su puntaje de popularidad y notamos que tenemos generos que dominan en cantidad como accustic pero no en popularidad, contrario al metal que no alcanza las 250 canciones dentro del dataset pero si alcanza un altisimo nivel de popularidad. En el tercer grafico observamos los 25 generos menos populares y se puede observar que existen generos como el iranian al que no le va muy bien en terminos de pupularidad pero que cuentan con muchas cancioones dentro del dataset, por lo que podemos decir que a mayor cantidad de canciones de un genero no necesariamente asegura que sean populares.
+
 #### Distribución de la popularidad
 
 ```{r}
@@ -175,9 +182,9 @@ ggplot(dataset, aes(x = popularity)) +
 
 ```
 
-#### Popularidad por género
+Observamos la distribucion de la variable de popularidad. Notamos una excesiva cantidad de canciones puntuadas en 0, puede deberse a la poca actividad que presentan, muy recientes en la plataforma o con muy pocas reproducciones. El resto del histograma sigue una forma normal, con la popularidad concentrada entre el 25 y 55, intervalo dentro del cual se encuentra la media de popularidad de las canciones. Por ultimo observamos que muy pocas canciones superan un puntaje de 75 puntos de popularidad, por lo que es coherente que existan pocos "hits mundiales"
 
-Diagrama de caja
+#### Popularidad por género
 
 ```{r}
 # Popularidad por género en diagrama de cajas
@@ -219,6 +226,8 @@ p2 <- dataset %>%
 p2
 ```
 
+Generamos un boxplot para los 10 generos mas populares en orden descendiente. Podemos observar que el pop lidera claramente: la mediana más alta y una caja bastante compacta (poca dispersión), lo que indica que casi todas las canciones de pop tienen popularidad alta.
+
 #### Popularidad por características del audio
 
 ```{r}
@@ -242,7 +251,29 @@ audio_vars <- dataset %>%
     labs(title = "Correlación de cada característica de audio con popularidad",
          x = "Característica", y = "Correlación")
 
+#Del genero POP tomamos las caracteristicas de audio
+
+POP<- dataset %>% 
+      filter(track_genre=="pop") %>%
+      select(popularity,danceability,energy,loudness,speechiness,acousticness, instrumentalness, liveness, valence, tempo) %>%
+  drop_na()
+
+#Correlación de popularidad y caracteristicas de audio, pero solo entre canciones pop
+
+matriz_pop<- cor(POP)
+
+corrplot(matriz_pop, method = "color", type = "upper",
+         addCoef.col = "black", tl.col = "black", tl.srt = 45,
+         number.cex = 0.7,
+         title = "Correlación dentro del género POP")
+
 ```
+
+El primer grafico nos permite visualizar las correlaciones entre la popularidad y las caracteristicas del audio ordenadas de mayor a menor. Dentro de las correlaciones positivas encontramos ruido, bailabilidad, energia y tempo, no es una correlacion muy cercana al 1 sin embargo son caracteristicas que encontramos facilmente en canciones populares. Dentro de las relaciones negativas hallamos instrumentales, acustica y letra/voz. Sugiere que las canciones con estas carecteriticas tienden a ser menos populares
+
+Como nuestro objetivo es encontrar una receta para crear una cancion famosa, queremos saber como se relacionan las caracteristicas de una cancion con su popularidad. Hasta ahora encontramos que el genero pop es el mas popular, pero ¿Que hace popular al pop?
+
+En mapa de calor del pop las canciones más ruidosas, más bailables y más energéticas tienden a ser levemente más populares.
 
 ## Modelos predictivos
 
@@ -262,7 +293,7 @@ receta <- recipe(popularity ~ danceability + energy + loudness + speechiness + a
   
 ```
 
-#### Modelo Arbol de desición
+#### Modelo Arbol de decisión
 
 ```{r}
 #Arbol de regresion. Va a predecir el promedio mas de popularidad, cual es el promedio de calificacion del 1 al 100 entre las canciones mas populares
@@ -273,16 +304,16 @@ modelo_arbol <- decision_tree()|>
   fit(popularity~., data= train)
 
 rpart.plot(modelo_arbol$fit, roundint = FALSE)
-#hay que mejorar este arbol, no se entiende que quiere decir
 
-#En este caso la prediccion Y es el promedio de la  evaluacion en 40 lo
-#cual se refleja en el grafico. Respecto a train
+#En este caso la prediccion Y es el promedio de la  evaluacion en 40 
+#lo cual se refleja en el grafico. Respecto a train
 resultados_tree_entrenamiento<- train %>% select(popularity) |>
   bind_cols(predict(modelo_arbol,train)) |>
   rename(.pred_tree=.pred)
 
 resultados_tree_entrenamiento %>% head(50)
 resultados_tree_entrenamiento %>% distinct(.pred_tree)
+
 #Predice entre 4 niveles de popularidad
 
 resultados_tree_entrenamiento |> ggplot(aes(x=popularity,y=.pred_tree))+
@@ -309,7 +340,19 @@ resultados_tree_test %>%distinct(.pred_tree)
 metrics(resultados_tree_test, truth = popularity, estimate = .pred_tree)
 ```
 
-Una vez comparando los resultados de las metricas en train y test podemos decir que el modelo Tree generaliza bien, esto quiere decir que el arbol logra captar relaciones que se sostienen en datos que nunca vio, que es lo queremos demostrar
+En el arbol:
+
+Nodo raíz (33, 100%): valor promedio de popularity predicho = 33 para el 100% de los datos, antes de dividir.
+
+La primera división es por track_genre: separa entre un grupo de géneros menos populares (rama izquierda) vs. el resto (rama derecha, 41 puntos, 59% de los datos).
+
+La rama derecha (41, 59%) tiene popularidad promedio más alta, géneros como pop, hip-hop, house, etc. tienden a ser más populares que la rama izquierda.
+
+Dentro de esa rama derecha, se vuelve a dividir por género: el nodo 48 (20%) aísla géneros aún más populares (probablemente pop, k-pop, reggaeton, etc.), mientras el nodo 37 (39%) queda con popularidad intermedia.
+
+La rama izquierda (22, 41%) tiene popularidad más baja en promedio, y se subdivide otra vez por género en 12 (12%) — el grupo menos popular de todo el árbol— y 26 (28%).
+
+Una vez comparando los resultados de las metricas en train y test podemos decir que el modelo Tree generaliza bien, esto quiere decir que el arbol logra captar relaciones que se sostienen en datos que nunca vio, que es lo queremos demostrar.
 
 #### Random Forest
 
@@ -361,4 +404,8 @@ comparacion <- metrics(resultados_tree_test, truth = popularity, estimate = .pre
 comparacion
 ```
 
-### Bivariado
+### Resultados
+
+Según los datos, el género musical importa mucho más que las características acústicas de la canción (el "qué tipo de música haces" pesa más que el "cómo suena técnicamente") pero esto probablemente refleja tamaño de audiencia y visibilidad en la plataforma.
+
+Por lo tanto, no podemos afirmar que "hacer una cancion pop" causa exito. Es un genero que esta sometido a mucha visualizacion del medio debido a su naturaleza mainstream
