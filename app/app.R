@@ -3,7 +3,7 @@ library(tidyverse)
 library(DT)
 
 #Limpieza de datos
-
+dataset <- read_csv("dataset.csv", show_col_types = FALSE)
 dataset <- dataset %>%
   distinct(track_id, .keep_all = TRUE) %>%
   drop_na()
@@ -128,3 +128,10 @@ server <- function(input, output) {
 
 shinyApp(ui, server)
       
+#Creo APP
+rsconnect::deployApp(
+  appDir = "app",
+  appFiles = c("app.R", "dataset.csv"),
+  appName = "app-trabajo-final",
+  forceUpdate = TRUE
+)
